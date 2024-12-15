@@ -15,7 +15,6 @@ import CoreData
 // попытаться понять, что происходит в комплишене метода container.loadPersistentStores
 // попробовать добавить еще один объект кор даты(хз ченить
 final class ViewController: UIViewController, UISearchBarDelegate {
-
     // MARK: - Constants
     // почему для этого лучше использовать enum а не struct?
     private enum Constants {
@@ -35,7 +34,13 @@ final class ViewController: UIViewController, UISearchBarDelegate {
 
     private var model = Model()
 
-    var tasks: [Task]?
+    private let coreDataStack = CoreDataStack()
+
+    private var tasks: [Task]?
+
+    private var refresh = UIRefreshControl()
+
+    private var isFirstAppear = true
 
     private let tableView: UITableView = {
         let tableView = UITableView()
@@ -63,18 +68,37 @@ final class ViewController: UIViewController, UISearchBarDelegate {
 
         self.tableView.dataSource = self
         self.tableView.delegate = self
-        // кашу отсюда тоже убрать надо
-
         self.navigationItem.title = "Tasks"
+        self.tableView.reloadData()
 
-        // add self
         self.createSearch()
         self.createNavBarButton()
         self.configureAppearanceNavBar()
         self.setupTableView()
         self.model.sortByTitle()
+        self.createRefreshController()
+        print("view did load")
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        print("view did disappear")
+
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        print("view did appear")
+
+        if !self.isFirstAppear {
+            self.model.toDoItems = coreDataStack.fetch()
+            tableView.reloadData()
+        }
+
+        self.isFirstAppear = false
     }
 }
+
 //MARK: - UITableViewDataSource
 
 extension ViewController: UITableViewDataSource {
@@ -92,8 +116,6 @@ extension ViewController: UITableViewDataSource {
         guard let cell = tableView.dequeueReusableCell(withIdentifier: CustomCell.identifier, for: indexPath) as? CustomCell else {
             fatalError()
         }
-
-        cell.delegate = self
         
         let currentTask = model.toDoItems[indexPath.row]
         cell.itemName.text = currentTask.string
@@ -126,7 +148,6 @@ extension ViewController: UITableViewDataSource {
         
         alert = UIAlertController(title: "Edit your task", message: nil, preferredStyle: .alert)
 
-        // add weak self
         alert.addTextField(configurationHandler: { [weak self] (textField) -> Void in
             textField.addTarget(self, action: #selector(self?.alertTextFieldDidChange(_:)), for: .editingChanged)
             textField.text = cell?.itemName.text
@@ -166,8 +187,9 @@ extension ViewController: UITableViewDataSource {
         }
     }
 */
-
 }
+
+    //MARK: - UITableViewDelegate
 
 extension ViewController: UITableViewDelegate {
 
@@ -180,13 +202,8 @@ extension ViewController: UITableViewDelegate {
         
         
         let deleteAction = UIContextualAction(style: .normal, title: "Delete") { [weak self] (action, view, completionHandler) in
-            //if let task = self.fetch
-            let itemReomve = self?.model.toDoItems[indexPath.row]
-            self?.model.toDoItems.remove(at: indexPath.row)
-            //model.removeItem(task: itemTask)
-            tableView.deleteRows(at: [indexPath], with: .left)
-            completionHandler(true)
-            //self?.model.removeItem(itemName: String , itemDescription: String, isCompleted: false)
+            self?.model.removeItem(index: indexPath.row)
+            self?.tableView.reloadData()
         }
         deleteAction.backgroundColor = .systemRed
         
@@ -229,6 +246,14 @@ extension ViewController {
         ])
     }
 
+    func createRefreshController() {
+        self.refresh.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        tableView.addSubview(refresh)
+    }
+        @objc func handleRefresh() {
+            refresh.endRefreshing()
+        }
+
     private func createNavBarButton() {
 
         let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addTask(sender: )))
@@ -258,7 +283,7 @@ extension ViewController {
 
     }
     
-    @objc
+    /*@objc
     private func addTask(sender: UIButton) {
 
         self.alert = UIAlertController(title: "Create new task", message: nil, preferredStyle: .alert)
@@ -291,8 +316,16 @@ extension ViewController {
         self.alert.addAction(createAlertAction)
         self.present(self.alert, animated: true, completion: nil)
         createAlertAction.isEnabled = false
+    }*/
+
+    @objc func addTask(sender: UIBarButtonItem) {
+        let taskView = TaskViewController()
+        navigationController?.pushViewController(taskView, animated: true)
+        self.tableView.reloadData()
+        self.model.sortByTitle()
+        //navBar.pushViewController(taskView, animated: true)
     }
-    
+
     @objc
     private func alertTextFieldDidChange(_ sender: UITextField) {
         guard let senderText = sender.text, alert.actions.indices.contains(1) else {
@@ -302,14 +335,6 @@ extension ViewController {
         let action = alert.actions[1]
         action.isEnabled = senderText.count > 0
     }
-
-//    @objc
-//    private func alertTextFieldDidChangeDescription(_ sender: UITextField) {
-//        guard let senderText = sender.text, alert.actions.indices.contains(1) else { return }
-//
-//        let action = alert.actions[1]
-////        action.isEnabled = senderText.count > 0
-//    }
 
     @objc
     private func sortingTasksButtonAction(sender: UIBarButtonItem) {
@@ -330,25 +355,4 @@ extension ViewController {
         model.editButtonClicked = !model.editButtonClicked
         editButton.image = model.editButtonClicked ? Constants.pencilSlashImage : Constants.pencilImage
     }
-}
-// экстеншен для чего?
-extension ViewController: CustomCellDelegate {
-
-    func deleteCell(cell: CustomCell) {
-        let indexPath = tableView.indexPath(for: cell)
-
-        guard let unwrIndexPath = indexPath else { return }
-
-        //model.removeItem(at: unwrIndexPath.row)
-        tableView.reloadData()
-    }
-
-    func editCell(cell: CustomCell) {
-        let indexPath = tableView.indexPath(for: cell)
-
-        guard let unwrIndexPath = indexPath else { return }
-
-        self.editCellContent(indexPath: unwrIndexPath)
-    }
-
 }

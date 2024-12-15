@@ -70,9 +70,9 @@ class Model {
         self.toDoItems = self.coreDataStack.fetch()
     }*/
 
-    func removeItem(itemName: String, itemDescription: String, isCompleted: Bool = false) {
-        let item = Item(string: itemName, descriprion: itemDescription, completed: isCompleted)
-        self.coreDataStack.deleteItem(with: item)
+    func removeItem(index: Int) {
+        let item = self.toDoItems[index]
+        self.coreDataStack.deleteItem(item)
         self.toDoItems = self.coreDataStack.fetch()
     }
 

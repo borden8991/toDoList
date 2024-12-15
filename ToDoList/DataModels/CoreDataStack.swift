@@ -68,6 +68,7 @@ final class CoreDataStack {
 
     public func fetch() -> [Item] {
         let request = NSFetchRequest<Task>(entityName: "Task")
+        request.sortDescriptors = [NSSortDescriptor(key: "itemName", ascending: true)]
 
         var entities: [Item]?
 
@@ -104,24 +105,19 @@ final class CoreDataStack {
 
     }
 
-    public func deleteItem(with task: Item) {
+    public func deleteItem(_ item: Item) {
+
+        let predicate = NSPredicate(format: "itemName == %@", NSString(string: item.string))
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Task")
-        do {
-            guard let tasks = try? context.fetch(fetchRequest) as? [Task],
-                  let itemTask = tasks.first(where: { $0.itemName == task.string }) else { return }
-            context.delete(itemTask)
+        fetchRequest.predicate = predicate
+        self.context.performAndWait {
+            do {
+                guard let tasks = try? context.fetch(fetchRequest) as? [Task]
+                    else { return }
+                context.delete(tasks[0])
+            }
         }
         saveContextIfChanged()
-        /*let fetchRequest = try self.createItem(_: item)
-
-            let tasks = try? context.fetch(fetchRequest)
-        tasks.forEach {
-            context.delete($0)
-        }
-        try context.saveContextIfChanged()
-        }
-                    //let task = tasks.first(where: { $0 == index })
-            self.saveContextIfChanged()*/
     }
 
     func updateItem(_ item: Item) {
@@ -129,7 +125,7 @@ final class CoreDataStack {
         task.itemName = item.string
         task.itemDescription = item.description
         task.itemCompleted = item.completed
-        
+
         self.saveContextIfChanged()
     }
 }

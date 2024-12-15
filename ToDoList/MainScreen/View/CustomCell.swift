@@ -7,14 +7,8 @@
 
 import UIKit
 
-protocol CustomCellDelegate {
-    func editCell(cell: CustomCell)
-    func deleteCell(cell: CustomCell)
-}
-
+// по крайсоте расписать
 class CustomCell: UITableViewCell {
-    
-    var delegate : CustomCellDelegate?
     
     let itemName: UILabel = {
         let label = UILabel()
@@ -43,7 +37,12 @@ class CustomCell: UITableViewCell {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
+    // что он делает?
+    override func prepareForReuse() {
+        super.prepareForReuse()
+    }
+
     private func setupCell() {
         [itemName, itemDescription].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
