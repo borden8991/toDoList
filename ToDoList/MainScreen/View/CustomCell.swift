@@ -2,7 +2,7 @@
 //  CustomCellTableViewCell.swift
 //  ToDoList
 //
-//  Created by user270963 on 11/8/24.
+//  Created by Denis Borovoi on 11/8/24.
 //
 
 import UIKit
@@ -26,6 +26,8 @@ class CustomCell: UITableViewCell {
         label.numberOfLines = 0
         return label
     }()
+    
+    var itemCompleted: Bool = false
     
     static let identifier = "CustomCell"
 
@@ -51,18 +53,18 @@ class CustomCell: UITableViewCell {
         
         NSLayoutConstraint.activate([
             itemName.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
-            itemName.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
+            itemName.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 25),
             itemName.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
 
             itemDescription.topAnchor.constraint(equalTo: itemName.bottomAnchor, constant: 5),
-            itemDescription.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
+            itemDescription.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 25),
             itemDescription.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
             itemDescription.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -15)
         ])
     }
     
     func configure(task: Item) {
-        itemName.text = task.string
+        itemName.text = task.itemName
         itemDescription.text = task.description
     }
 }

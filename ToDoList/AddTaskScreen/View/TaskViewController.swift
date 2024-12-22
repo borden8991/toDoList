@@ -2,7 +2,7 @@
 //  TaskViewController.swift
 //  ToDoList
 //
-//  Created by Vasily Maslov on 09.12.2024.
+//  Created by Denis Borovoi on 09.12.2024.
 //
 
 import UIKit
@@ -12,10 +12,8 @@ final class TaskViewController: UIViewController {
 //MARK: - Private Properties
 
     private var navBar: UINavigationController?
-
-    private var model = Model()
-
-    private var doAfterEdit: ((Item) -> Void)?
+    
+    var presenter: AddTaskViewOutputProtocol?
 
     private var nameTaskField: UITextField = {
         let text = UITextField()
@@ -38,10 +36,11 @@ final class TaskViewController: UIViewController {
     private var createTaskButton: UIButton = {
         let button = UIButton()
         button.setTitle("Create task", for: .normal)
-        button.backgroundColor = .blue
+        button.backgroundColor = .systemBlue
         button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 0.5
+        button.layer.cornerRadius = 10
         button.addTarget(self, action: #selector(buttonTask(sender: )), for: .touchUpInside)
+        button.isEnabled = false
         return button
     }()
 
@@ -54,19 +53,15 @@ final class TaskViewController: UIViewController {
         createDescriprionTextField()
         createTaskButtonConstreint()
 
-        /* let appereance = UINavigationBarAppearance()
-         self.navBar?.navigationBar.isTranslucent = false
-         self.navBar?.navigationBar.barTintColor = .white
-         appereance.backgroundColor = .white
-         view.backgroundColor = .cyan*/
-
         self.title = "Add task"
-        view.backgroundColor = .systemGray
+        self.view.backgroundColor = .white
     }
 
     //MARK: - Private Methods
+    
     private func createNameTextField() {
         view.addSubview(nameTaskField)
+        self.nameTaskField.addTarget(self, action: #selector(textFieldDidChange(_ :)), for: .editingChanged)
         self.nameTaskField.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             self.nameTaskField.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 10),
@@ -76,44 +71,48 @@ final class TaskViewController: UIViewController {
         ])
     }
 
+    @objc
+    func textFieldDidChange(_ textField: UITextField) {
+        createTaskButton.isEnabled = textField.hasText
+    }
+    
     func createDescriprionTextField() {
         view.addSubview(descriptionTaskField)
         self.descriptionTaskField.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             self.descriptionTaskField.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 10),
             self.descriptionTaskField.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -10),
-            self.descriptionTaskField.topAnchor.constraint(equalTo: self.nameTaskField.bottomAnchor, constant: 20 ),
+            self.descriptionTaskField.topAnchor.constraint(equalTo: self.nameTaskField.bottomAnchor, constant: 10 ),
             self.descriptionTaskField.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
 
     func createTaskButtonConstreint() {
         view.addSubview(createTaskButton)
-        createTaskButton.translatesAutoresizingMaskIntoConstraints = false
+        self.createTaskButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            createTaskButton.widthAnchor.constraint(equalToConstant: 150),
-            createTaskButton.heightAnchor.constraint(equalToConstant: 60),
-            createTaskButton.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-            createTaskButton.centerYAnchor.constraint(equalTo: self.view.centerYAnchor)
+            self.createTaskButton.widthAnchor.constraint(equalToConstant: 150),
+            self.createTaskButton.heightAnchor.constraint(equalToConstant: 60),
+            self.createTaskButton.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+            self.createTaskButton.centerYAnchor.constraint(equalTo: self.view.centerYAnchor)
         ])
     }
 
     @objc func buttonTask(sender: Any) {
         print("Button is pressed")
-        guard let unwrTextFieldValue = self.nameTaskField.text,
-              let unweTextDescription = self.descriptionTaskField.text else { return }
-
-        self.model.addItem(itemName: unwrTextFieldValue,
-                           itemDescription: unweTextDescription)
-        self.model.sortByTitle()
-        navigationController?.popToRootViewController(animated: true)
-        if nameTaskField.hasText == false {
-            createTaskButton.isEnabled = false
-        } else {
-            createTaskButton.isEnabled = true
-        }
-    } // Вопрос
-
+        guard let title = self.nameTaskField.text else { return }
+        
+        self.presenter?.didPressCreateTaskButton(itemName: title, itemDescription: self.descriptionTaskField.text)
+    }
 }
+
+// MARK: - AddTaskViewInputProtocol
+
+extension TaskViewController: AddTaskViewInputProtocol {
+    func didCreateTask() {
+        navigationController?.popToRootViewController(animated: true)
+    }
+}
+
 
 

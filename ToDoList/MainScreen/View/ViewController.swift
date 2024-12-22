@@ -14,7 +14,9 @@ import CoreData
 // закрыть кор дату протоколом
 // попытаться понять, что происходит в комплишене метода container.loadPersistentStores
 // попробовать добавить еще один объект кор даты(хз ченить
-final class ViewController: UIViewController, UISearchBarDelegate {
+final class ViewController: UIViewController {
+    
+    
     // MARK: - Constants
     // почему для этого лучше использовать enum а не struct?
     private enum Constants {
@@ -32,15 +34,17 @@ final class ViewController: UIViewController, UISearchBarDelegate {
 
     private let navBar = UINavigationController()
 
-    private var model = Model()
-
-    private let coreDataStack = CoreDataStack()
-
-    private var tasks: [Task]?
-
+//    private var model = Model()
+    
     private var refresh = UIRefreshControl()
-
-    private var isFirstAppear = true
+    
+    let userDefaults = UserDefaults.standard
+    
+    var presenter: MainViewOutputProtocol?
+    
+    private var toDoItems: [Item] = []
+    
+    var searching = false
 
     private let tableView: UITableView = {
         let tableView = UITableView()
@@ -48,12 +52,9 @@ final class ViewController: UIViewController, UISearchBarDelegate {
         //tableView.separatorColor = .gray
         tableView.sectionHeaderHeight = 100
         tableView.rowHeight = UITableView.automaticDimension
-        tableView.separatorColor = .blue
-        tableView.reloadData()
+        tableView.separatorColor = .systemBlue
         return tableView
     }()
-
-    //private let addButton = UIButton()
 
     private var sortButton = UIBarButtonItem()
 
@@ -64,38 +65,31 @@ final class ViewController: UIViewController, UISearchBarDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // обращаясь к свойствам или методам класса используй self. перед именем
-
         self.tableView.dataSource = self
         self.tableView.delegate = self
+        
         self.navigationItem.title = "Tasks"
-        self.tableView.reloadData()
 
         self.createSearch()
         self.createNavBarButton()
         self.configureAppearanceNavBar()
         self.setupTableView()
-        self.model.sortByTitle()
         self.createRefreshController()
         print("view did load")
+        
+        self.presenter?.viewDidLoad()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         print("view did disappear")
-
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         print("view did appear")
 
-        if !self.isFirstAppear {
-            self.model.toDoItems = coreDataStack.fetch()
-            tableView.reloadData()
-        }
-
-        self.isFirstAppear = false
+        self.presenter?.viewDidAppear()
     }
 }
 
@@ -108,7 +102,7 @@ extension ViewController: UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        model.toDoItems.count
+        self.toDoItems.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -117,15 +111,19 @@ extension ViewController: UITableViewDataSource {
             fatalError()
         }
         
-        let currentTask = model.toDoItems[indexPath.row]
-        cell.itemName.text = currentTask.string
-        cell.itemDescription.text = currentTask.string
-
-        cell.accessoryType = model.toDoItems[indexPath.row].completed ? .checkmark : .none
-
-        cell.configure(task: model.toDoItems[indexPath.row])
+        let currentTask = self.toDoItems[indexPath.row]
+        cell.itemName.text = currentTask.itemName
+        cell.itemDescription.text = currentTask.itemName
+        //cell.itemCompleted = currentTask.completed
+        cell.accessoryType = self.toDoItems[indexPath.row].completed ? .checkmark : .none
+        
+        cell.configure(task: self.toDoItems[indexPath.row])
         
         return cell
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
     }
     
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
@@ -137,8 +135,8 @@ extension ViewController: UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, moveRowAt sourceIndexPath: IndexPath, to destinationIndexPath: IndexPath) {
-        let tasks = model.toDoItems.remove(at: sourceIndexPath.row)
-        model.toDoItems.insert(tasks, at: destinationIndexPath.row)
+        let tasks = self.toDoItems.remove(at: sourceIndexPath.row)
+        self.toDoItems.insert(tasks, at: destinationIndexPath.row)
         
         tableView.reloadData()
     }
@@ -154,7 +152,6 @@ extension ViewController: UITableViewDataSource {
         })
         
         alert.addTextField(configurationHandler: { (textField) -> Void in
-//            textField.addTarget(self, action: #selector(self.alertTextFieldDidChangeDescription(_:)), for: .editingChanged)
             textField.text = cell?.itemDescription.text
         })
         
@@ -166,27 +163,18 @@ extension ViewController: UITableViewDataSource {
             guard let textFields = self.alert.textFields, textFields.count > 0,
                   let textValue = self.alert.textFields?[0].text,
                   let textValueDes = self.alert.textFields?[1].text else { return }
-        
-            self.model.updateItem(at: indexPath.row, with: textValue, with: textValueDes)
+        // TODO: - Вынести логику обновления айтема в презентер
+            //self.model.updateItem(newName: textValue, newDescription: textValueDes)
             
         self.tableView.reloadData()
         }
+        // TODO: - Вынести логику удаления айтема в презентер
+       // self.model.removeItem(index: indexPath.row)
         
         alert.addAction(cancelAlertAction)
         alert.addAction(editAlertAction)
         present(alert, animated: true, completion: nil)
     }
-
-/*    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            model.toDoItems.remove(at: indexPath.row)
-            let commit = model.toDoItems[
-            tableView.deleteRows(at: [indexPath], with: .fade)
-
-            CoreDataStack.saveContextIfChanged()
-        }
-    }
-*/
 }
 
     //MARK: - UITableViewDelegate
@@ -195,14 +183,15 @@ extension ViewController: UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let checkmarkAction = UIContextualAction(style: .normal, title: "Done") { [weak self] (action, view, completionHander) in
-            self?.checkmarkAdd(indexPath: indexPath)
+           self?.checkmarkAdd(indexPath: indexPath)
             completionHander(true)
         }
         checkmarkAction.backgroundColor = .lightGray
         
         
         let deleteAction = UIContextualAction(style: .normal, title: "Delete") { [weak self] (action, view, completionHandler) in
-            self?.model.removeItem(index: indexPath.row)
+            // TODO: - Вынести логику удаления айтема в презентер
+           // self?.model.removeItem(index: indexPath.row)
             self?.tableView.reloadData()
         }
         deleteAction.backgroundColor = .systemRed
@@ -222,6 +211,8 @@ extension ViewController: UITableViewDelegate {
 
     func checkmarkAdd(indexPath: IndexPath) {
 
+        // TODO: - Вынести логику добавления галки в презентер
+        //self.model.changeState(index: indexPath.row)
         if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
             tableView.cellForRow(at: indexPath)?.accessoryType = .none
         }
@@ -265,65 +256,19 @@ extension ViewController {
         self.navigationItem.rightBarButtonItems = [addButton, editButton, sortButton]
     }
 
-    private func createSearch() {
-        searchController.searchBar.placeholder = "Find your task"
 
-        self.navigationItem.searchController = searchController
-        self.navigationItem.hidesSearchBarWhenScrolling = false
-
-        definesPresentationContext = true
-
-        searchController.searchBar.delegate = self
-    }
 
     private func configureAppearanceNavBar() {
         navBar.navigationBar.backgroundColor = .lightGray
         navBar.navigationBar.isTranslucent = false
-        //navBar.navigationBar.addBottomBorder(with: , height: 1)
-
     }
-    
-    /*@objc
-    private func addTask(sender: UIButton) {
-
-        self.alert = UIAlertController(title: "Create new task", message: nil, preferredStyle: .alert)
-        
-        self.alert.addTextField { textField in
-            textField.placeholder = "Put your task here"
-            textField.addTarget(self, action: #selector(self.alertTextFieldDidChange(_ :)), for: .editingChanged)
-        }
-        
-        let createAlertAction = UIAlertAction(title: "Create", style: .default) {
-            (createAlert) in
-            
-            guard let unwrTextFieldValue = self.alert.textFields?[0].text,
-                  let unweTextDescription = self.alert.textFields?[1].text else { return }
-
-            self.model.addItem(itemName: unwrTextFieldValue, itemDescription: unweTextDescription)
-            self.model.sortByTitle()
-            self.tableView.reloadData()
-        }
-
-        self.alert.addTextField { (textField: UITextField) in
-            textField.placeholder = "Description"
-//            textField.addTarget(self, action: #selector(self.alertTextFieldDidChangeDescription(_:)), for: .editingChanged)
-        }
-        
-        let cancelAlertAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
-
-
-        self.alert.addAction(cancelAlertAction)
-        self.alert.addAction(createAlertAction)
-        self.present(self.alert, animated: true, completion: nil)
-        createAlertAction.isEnabled = false
-    }*/
 
     @objc func addTask(sender: UIBarButtonItem) {
-        let taskView = TaskViewController()
-        navigationController?.pushViewController(taskView, animated: true)
+        let vc = AddTaskScreenBuilder.createAddTaskScreen()
+        navigationController?.pushViewController(vc, animated: true)
         self.tableView.reloadData()
-        self.model.sortByTitle()
-        //navBar.pushViewController(taskView, animated: true)
+        // TODO: - Вынести логику сортировки айтемов в презентер
+        //self.model.sortByTitle()
     }
 
     @objc
@@ -331,7 +276,7 @@ extension ViewController {
         guard let senderText = sender.text, alert.actions.indices.contains(1) else {
             return
         }
-
+        
         let action = alert.actions[1]
         action.isEnabled = senderText.count > 0
     }
@@ -339,11 +284,12 @@ extension ViewController {
     @objc
     private func sortingTasksButtonAction(sender: UIBarButtonItem) {
 
-        sortButton.image = model.sortedAscending ? Constants.arrowUpImage : Constants.arrowDownImage
-
-        model.sortedAscending = !model.sortedAscending
-
-        model.sortByTitle()
+        // TODO: - Вынести логику сортировки айтемов в презентер
+//        sortButton.image = model.sortedAscending ? Constants.arrowUpImage : Constants.arrowDownImage
+//
+//        model.sortedAscending = !model.sortedAscending
+//
+//        model.sortByTitle()
 
         tableView.reloadData()
     }
@@ -351,8 +297,67 @@ extension ViewController {
     @objc
     private func editButton(sender: UIBarButtonItem) {
         tableView.setEditing(!tableView.isEditing, animated: true)
+        // TODO: - Вынести логику изменения айтема в презентер
+//        model.editButtonClicked = !model.editButtonClicked
+//        editButton.image = model.editButtonClicked ? Constants.pencilSlashImage : Constants.pencilImage
+    }
+}
+
+extension ViewController: MainViewInputProtocol {
+    func updateScreen(with items: [Item]) {
+        self.toDoItems = items
+        tableView.reloadData()
+    }
+    
+//    func updateScreen() {
+//        tableView.reloadData()
+//        print("success")
+//    }
+    
+    func failure(error: any Error) {
+        print(error.localizedDescription)
+    }
+}
+
+extension ViewController: UISearchBarDelegate {
+    /*func updateSearchResults(for searchController: UISearchController) {
+        print("DEBUG: ", searchController.searchBar.text ?? " ")
+        let searchBar = searchController.searchBar
+        guard let searchText = searchBar.text else { return }
+        filterForSearch(searchText: searchText)
+    }
+    
+    func filterForSearch(searchText: String) {
+        model.filteredToDoItems = model.toDoItems.filter {
+            $0.itemName.lowercased().contains(searchText.lowercased())
+        }
+        self.tableView.reloadData()
+    }*/
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+//        model.filteredToDoItems = model.toDoItems.filter({
+//                $0.itemName.lowercased().prefix(searchText.count) == searchText.lowercased()
+//            })
+//        searching = true
+//        self.tableView.reloadData()
+    }
+    
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        searching = false
+        searchBar.text = ""
+        self.tableView.reloadData()
+    }
+    private func createSearch() {
         
-        model.editButtonClicked = !model.editButtonClicked
-        editButton.image = model.editButtonClicked ? Constants.pencilSlashImage : Constants.pencilImage
+        self.searchController.searchBar.placeholder = "Find your task"
+        self.searchController.obscuresBackgroundDuringPresentation = false
+        //self.searchController.searchResultsUpdater = self
+        self.searchController.searchBar.enablesReturnKeyAutomatically = false
+        //self.searchController.searchResultsUpdater = self
+        self.searchController.searchBar.delegate = self
+        
+        self.navigationItem.searchController = searchController
+        self.navigationItem.hidesSearchBarWhenScrolling = false
+        self.definesPresentationContext = true
     }
 }

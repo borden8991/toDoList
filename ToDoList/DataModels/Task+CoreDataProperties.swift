@@ -2,7 +2,7 @@
 //  Task+CoreDataProperties.swift
 //  ToDoList
 //
-//  Created by Vasily Maslov on 24.11.2024.
+//  Created by Denis Borovoi on 24.11.2024.
 //
 //
 

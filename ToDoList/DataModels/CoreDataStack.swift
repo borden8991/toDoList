@@ -2,7 +2,7 @@
 //  CoreDataStack.swift
 //  ToDoList
 //
-//  Created by Vasily Maslov on 24.11.2024.
+//  Created by Denis Borovoi on 24.11.2024.
 //
 
 import Foundation
@@ -15,6 +15,9 @@ final class CoreDataStack {
     private let persistentContainer: NSPersistentContainer
 
     var itemTask: [Item]?
+    
+    let sortDescriptor = NSSortDescriptor(key: "itemName", ascending: true)
+    
 
     // MARK: - Public Properties
 
@@ -79,8 +82,8 @@ final class CoreDataStack {
                 request.returnsObjectsAsFaults = false
                 let result = try context.fetch(request)
                 entities = result.map {
-                    Item(string: $0.itemName,
-                         descriprion: $0.itemDescription ?? "",
+                    Item(itemName: $0.itemName,
+                         description: $0.itemDescription ?? "",
                          completed: $0.itemCompleted)
                 }
             } catch {
@@ -97,7 +100,7 @@ final class CoreDataStack {
 
     public func createItem(_ item: Item) {
         let task = Task(context: context)
-        task.itemName = item.string
+        task.itemName = item.itemName
         task.itemDescription = item.description
         task.itemCompleted = item.completed
 
@@ -107,7 +110,7 @@ final class CoreDataStack {
 
     public func deleteItem(_ item: Item) {
 
-        let predicate = NSPredicate(format: "itemName == %@", NSString(string: item.string))
+        let predicate = NSPredicate(format: "itemName == %@", NSString(string: item.itemName))
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Task")
         fetchRequest.predicate = predicate
         self.context.performAndWait {
@@ -117,15 +120,30 @@ final class CoreDataStack {
                 context.delete(tasks[0])
             }
         }
-        saveContextIfChanged()
+        self.saveContextIfChanged()
     }
 
-    func updateItem(_ item: Item) {
+    func updateItem(item: Item, newName: String, newDescription: String) {
         let task = Task(context: context)
-        task.itemName = item.string
-        task.itemDescription = item.description
-        task.itemCompleted = item.completed
-
+        task.itemName = newName
+        task.itemDescription = newDescription
         self.saveContextIfChanged()
+    }
+    
+    func createCheckmark(newCheckmark: Bool) {
+        
+        let predicate = NSPredicate(format: "itemCompleted == %@", true as NSNumber)
+        let fecthRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Task")
+        fecthRequest.predicate = predicate
+        let task = Task(context: context)
+        task.itemCompleted = newCheckmark
+        self.saveContextIfChanged()
+        /*let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Task")
+        fetchRequest.predicate = NSPredicate(format: "itemCompleted = true")
+        self.context.performAndWait {
+            guard let tasks = try? context.fetch(fetchRequest) as? [Task]
+            else { return }
+            item.completed = !item.completed
+        }*/
     }
 }
