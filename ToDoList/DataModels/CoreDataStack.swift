@@ -2,130 +2,87 @@
 //  CoreDataStack.swift
 //  ToDoList
 //
-//  Created by Vasily Maslov on 24.11.2024.
+//  Created by Denis Borovoi on 24.11.2024.
 //
 
-import Foundation
 import CoreData
+import UIKit
 
-final class CoreDataStack {
-
-    // MARK: - Private Properties
-
-    private let persistentContainer: NSPersistentContainer
-
-    var itemTask: [Item]?
-
+class CoreDataStack {
+    
     // MARK: - Public Properties
+    
+    static let shared = CoreDataStack()
 
-    public let context: NSManagedObjectContext
-
-    // MARK: - Init
-
-    public init() {
-        guard let modelUrl = Bundle.main.url(forResource: "ToDoList", withExtension: "momd") else {
-            fatalError("Невозможно загрузить CoreData модель")
-        }
-
+    public let persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "ToDoList")
-        let description = NSPersistentStoreDescription()
-        //        description.shouldMigrateStoreAutomatically = true
-        //        description.shouldInferMappingModelAutomatically = true
-        container.persistentStoreDescriptions.append(description)
-        container.loadPersistentStores { persistanceStoreDescription, error in
-            // error триггерится если не срабатывает lightweight миграция и тогда удаляется текущая sqlite моделька и создается новая ей на замену
-            //            if let error {
-            //                NSLog("CoreData. Ошибка загрузки \(error)")
-            //                do {
-            //                    try container.persistentStoreCoordinator.destroyPersistentStore(at: modelUrl, type: .sqlite)
-            //                    _ = try container.persistentStoreCoordinator.addPersistentStore(type: .sqlite, at: modelUrl)
-            //                } catch {
-            //                    NSLog("CoreData. Ошибка создания или загрузки SQLite модели в persistent store: \(error.localizedDescription)")
-            //                }
-            //            } else {
-            //                NSLog("CoreData. persistentStore успешно загружен \(persistanceStoreDescription.type)")
-            //            }
+        container.loadPersistentStores { _, error in
+            if let error {
+                fatalError("Core Data load error: \(error)")
+            }
         }
-        persistentContainer = container
+        return container
+    }()
 
-        self.context = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
-        self.context.persistentStoreCoordinator = persistentContainer.persistentStoreCoordinator
-        self.context.mergePolicy = NSMergePolicy.overwrite
-        self.context.automaticallyMergesChangesFromParent = true
-    }
+    public var context: NSManagedObjectContext { persistentContainer.viewContext }
 
     // MARK: - Public Methods
+    
+    public func saveContext() {
+        if context.hasChanges {
+            try? context.save()
+        }
+    }
 
-    public func saveContextIfChanged() {
+    public func fetch(with searchText: String?,
+                      isAscending: Bool) -> [NoteViewModel] {
+        let request: NSFetchRequest<NoteEntity> = NoteEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "noteName", ascending: isAscending)]
+        if let searchText,
+            !searchText.isEmpty {
+            request.predicate = NSPredicate(format: "noteName CONTAINS[cd] %@", searchText)
+        }
+        
+        let result = try? context.fetch(request)
+        return result?.map { NoteViewModel(entity: $0) } ?? []
+    }
+
+    public func createNote(_ model: NoteViewModel) {
         self.context.performAndWait {
-            do {
-                try self.context.save()
-            } catch {
-                print("Unable to save context: \(error)")
+            let entity = NoteEntity(context: self.context)
+            entity.update(from: model)
+            saveContext()
+        }
+    }
+    
+    public func updateNote(id: UUID, title: String, description: String?) {
+        let request: NSFetchRequest<NoteEntity> = NoteEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        if let entity = try? context.fetch(request).first {
+            entity.noteName = title
+            if let description {
+                entity.noteDescription = description
             }
+            saveContext()
         }
     }
 
-    public func fetch() -> [Item] {
-        let request = NSFetchRequest<Task>(entityName: "Task")
-        request.sortDescriptors = [NSSortDescriptor(key: "itemName", ascending: true)]
-
-        var entities: [Item]?
-
-        // .perform(schedule: .enqueued) выполняет задачи в порядке очереди добавления в контекст, то есть синхронно, как .performAndWait() для не async/await версии. Дефолтное значение метода - .immediate, обеспечивает асинхронное выполнение задач(в момент добавления)
-
-        context.performAndWait {
-            do {
-                request.returnsObjectsAsFaults = false
-                let result = try context.fetch(request)
-                entities = result.map {
-                    Item(string: $0.itemName,
-                         descriprion: $0.itemDescription ?? "",
-                         completed: $0.itemCompleted)
-                }
-            } catch {
-                entities = nil
-            }
+    public func deleteNote(_ id: UUID) {
+        let request: NSFetchRequest<NoteEntity> = NoteEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        if let entity = try? context.fetch(request).first {
+            context.delete(entity)
+            saveContext()
         }
-        //
-        //                request.predicate = fetchConfiguration?.predicate
-        //                request.sortDescriptors = fetchConfiguration?.sortDescriptors
-        //                request.fetchLimit = fetchConfiguration?.fetchLimit ?? 0
-        //                request.fetchOffset = fetchConfiguration?.fetchOffset ?? 0
-        return entities ?? []
     }
 
-    public func createItem(_ item: Item) {
-        let task = Task(context: context)
-        task.itemName = item.string
-        task.itemDescription = item.description
-        task.itemCompleted = item.completed
-
-        self.saveContextIfChanged()
-
-    }
-
-    public func deleteItem(_ item: Item) {
-
-        let predicate = NSPredicate(format: "itemName == %@", NSString(string: item.string))
-        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Task")
-        fetchRequest.predicate = predicate
-        self.context.performAndWait {
-            do {
-                guard let tasks = try? context.fetch(fetchRequest) as? [Task]
-                    else { return }
-                context.delete(tasks[0])
-            }
+    public func toggleNoteCompletion(_ id: UUID) {
+        let request: NSFetchRequest<NoteEntity> = NoteEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        if let entity = try? context.fetch(request).first {
+            entity.noteCompleted.toggle()
+            saveContext()
         }
-        saveContextIfChanged()
-    }
-
-    func updateItem(_ item: Item) {
-        let task = Task(context: context)
-        task.itemName = item.string
-        task.itemDescription = item.description
-        task.itemCompleted = item.completed
-
-        self.saveContextIfChanged()
     }
 }
+

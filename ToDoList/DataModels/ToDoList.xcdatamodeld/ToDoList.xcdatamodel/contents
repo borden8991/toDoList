@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23507" systemVersion="24B91" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
-    <entity name="Task" representedClassName="Task" syncable="YES">
-        <attribute name="itemCompleted" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
-        <attribute name="itemDescription" optional="YES" attributeType="String"/>
-        <attribute name="itemName" attributeType="String"/>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788" systemVersion="24D81" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="NoteEntity" representedClassName="NoteEntity" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="noteCompleted" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="noteDescription" optional="YES" attributeType="String"/>
+        <attribute name="noteName" optional="YES" attributeType="String"/>
     </entity>
 </model>

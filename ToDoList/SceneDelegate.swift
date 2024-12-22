@@ -18,9 +18,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         guard let windowScene = (scene as? UIWindowScene) else { return }
         let window = UIWindow(windowScene: windowScene)
+        
+        let vc = MainScreenBuilder.createMainScreen()
 
-        let nav = UINavigationController(rootViewController: ViewController())
-
+        let nav = UINavigationController(rootViewController: vc)
+        
         window.rootViewController = nav
         self.window = window
 
@@ -57,7 +59,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // to restore the scene back to its current state.
 
         // Save changes in the application's managed object context when the application transitions to the background.
-        (UIApplication.shared.delegate as? AppDelegate)?.saveContext()
+        //(UIApplication.shared.delegate as? AppDelegate)?.saveContext()
     }
 }
 

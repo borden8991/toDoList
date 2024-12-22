@@ -2,15 +2,16 @@
 //  CustomCellTableViewCell.swift
 //  ToDoList
 //
-//  Created by user270963 on 11/8/24.
+//  Created by Denis Borovoi on 11/8/24.
 //
 
 import UIKit
 
-// по крайсоте расписать
 class CustomCell: UITableViewCell {
     
-    let itemName: UILabel = {
+    //MARK: - Properties
+    
+    let noteName: UILabel = {
         let label = UILabel()
         label.font = UIFont.systemFont(ofSize: 14)
         label.sizeToFit()
@@ -18,19 +19,23 @@ class CustomCell: UITableViewCell {
         return label
     }()
     
-    let itemDescription: UILabel = {
+    let noteDescription: UILabel = {
         let label = UILabel()
         label.font = UIFont.systemFont(ofSize: 10)
         label.textColor = .lightGray
         label.sizeToFit()
         label.numberOfLines = 0
+        label.lineBreakMode = .byTruncatingTail
         return label
     }()
     
     static let identifier = "CustomCell"
 
+    //MARK: - Init
+    
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        super.init(style: style,
+                   reuseIdentifier: reuseIdentifier)
         setupCell()
     }
     
@@ -38,31 +43,28 @@ class CustomCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // что он делает?
-    override func prepareForReuse() {
-        super.prepareForReuse()
-    }
-
+    //MARK: - Private methods
+    
     private func setupCell() {
-        [itemName, itemDescription].forEach {
+        [noteName, noteDescription].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             contentView.addSubview($0)
         }
         
         NSLayoutConstraint.activate([
-            itemName.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
-            itemName.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
-            itemName.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
+            noteName.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
+            noteName.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 25),
+            noteName.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
 
-            itemDescription.topAnchor.constraint(equalTo: itemName.bottomAnchor, constant: 5),
-            itemDescription.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 30),
-            itemDescription.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
-            itemDescription.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -15)
+            noteDescription.topAnchor.constraint(equalTo: noteName.bottomAnchor, constant: 5),
+            noteDescription.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 25),
+            noteDescription.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
+            noteDescription.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -15)
         ])
     }
     
-    func configure(task: Item) {
-        itemName.text = task.string
-        itemDescription.text = task.description
+    func configure(note: NoteViewModel) {
+        noteName.text = note.noteName
+        noteDescription.text = note.description
     }
 }
