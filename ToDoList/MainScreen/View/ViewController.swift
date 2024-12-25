@@ -31,10 +31,6 @@ final class ViewController: UIViewController {
     private let searchController = UISearchController()
 
     private var alert = UIAlertController()
-
-    private let navBar = UINavigationController()
-
-//    private var model = Model()
     
     private var refresh = UIRefreshControl()
     
@@ -72,7 +68,6 @@ final class ViewController: UIViewController {
 
         self.createSearch()
         self.createNavBarButton()
-        self.configureAppearanceNavBar()
         self.setupTableView()
         self.createRefreshController()
         print("view did load")
@@ -137,7 +132,6 @@ extension ViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, moveRowAt sourceIndexPath: IndexPath, to destinationIndexPath: IndexPath) {
         let tasks = self.toDoItems.remove(at: sourceIndexPath.row)
         self.toDoItems.insert(tasks, at: destinationIndexPath.row)
-        
         tableView.reloadData()
     }
     
@@ -164,17 +158,16 @@ extension ViewController: UITableViewDataSource {
                   let textValue = self.alert.textFields?[0].text,
                   let textValueDes = self.alert.textFields?[1].text else { return }
         // TODO: - Вынести логику обновления айтема в презентер
-            //self.model.updateItem(newName: textValue, newDescription: textValueDes)
-            
-        self.tableView.reloadData()
+            self.presenter?.updateItem(newName: textValue, newDescription: textValueDes)
+            self.presenter?.removeItem(index: indexPath.row)
         }
-        // TODO: - Вынести логику удаления айтема в презентер
-       // self.model.removeItem(index: indexPath.row)
         
+        // TODO: - Вынести логику удаления айтема в презентер
         alert.addAction(cancelAlertAction)
         alert.addAction(editAlertAction)
         present(alert, animated: true, completion: nil)
     }
+    
 }
 
     //MARK: - UITableViewDelegate
@@ -191,8 +184,7 @@ extension ViewController: UITableViewDelegate {
         
         let deleteAction = UIContextualAction(style: .normal, title: "Delete") { [weak self] (action, view, completionHandler) in
             // TODO: - Вынести логику удаления айтема в презентер
-           // self?.model.removeItem(index: indexPath.row)
-            self?.tableView.reloadData()
+            self?.presenter?.removeItem(index: indexPath.row)
         }
         deleteAction.backgroundColor = .systemRed
         
@@ -241,9 +233,10 @@ extension ViewController {
         self.refresh.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
         tableView.addSubview(refresh)
     }
-        @objc func handleRefresh() {
-            refresh.endRefreshing()
-        }
+    
+    @objc func handleRefresh() {
+        refresh.endRefreshing()
+    }
 
     private func createNavBarButton() {
 
@@ -256,19 +249,11 @@ extension ViewController {
         self.navigationItem.rightBarButtonItems = [addButton, editButton, sortButton]
     }
 
-
-
-    private func configureAppearanceNavBar() {
-        navBar.navigationBar.backgroundColor = .lightGray
-        navBar.navigationBar.isTranslucent = false
-    }
-
     @objc func addTask(sender: UIBarButtonItem) {
         let vc = AddTaskScreenBuilder.createAddTaskScreen()
         navigationController?.pushViewController(vc, animated: true)
-        self.tableView.reloadData()
+
         // TODO: - Вынести логику сортировки айтемов в презентер
-        //self.model.sortByTitle()
     }
 
     @objc
@@ -285,21 +270,19 @@ extension ViewController {
     private func sortingTasksButtonAction(sender: UIBarButtonItem) {
 
         // TODO: - Вынести логику сортировки айтемов в презентер
-//        sortButton.image = model.sortedAscending ? Constants.arrowUpImage : Constants.arrowDownImage
-//
-//        model.sortedAscending = !model.sortedAscending
-//
-//        model.sortByTitle()
-
-        tableView.reloadData()
+        sortButton.image = self.presenter?.sortedAscending ?? true ? Constants.arrowUpImage : Constants.arrowDownImage
+        
+        self.presenter?.sortedAscending = !(self.presenter?.sortedAscending ?? false)
+        
+        self.presenter?.sortByTitle()
     }
     
     @objc
     private func editButton(sender: UIBarButtonItem) {
         tableView.setEditing(!tableView.isEditing, animated: true)
         // TODO: - Вынести логику изменения айтема в презентер
-//        model.editButtonClicked = !model.editButtonClicked
-//        editButton.image = model.editButtonClicked ? Constants.pencilSlashImage : Constants.pencilImage
+        self.presenter?.editButtonClicked = !(presenter?.editButtonClicked ?? false)
+        editButton.image = self.presenter?.editButtonClicked ?? false ? Constants.pencilSlashImage : Constants.pencilImage
     }
 }
 
@@ -308,11 +291,6 @@ extension ViewController: MainViewInputProtocol {
         self.toDoItems = items
         tableView.reloadData()
     }
-    
-//    func updateScreen() {
-//        tableView.reloadData()
-//        print("success")
-//    }
     
     func failure(error: any Error) {
         print(error.localizedDescription)

@@ -12,6 +12,7 @@ final class AddTaskScreenBuilder {
         let view = TaskViewController()
         let presenter = AddTaskPresenter(view: view)
         view.presenter = presenter
+        print("created addtask screen")
         return view
     }
 }

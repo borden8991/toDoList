@@ -27,26 +27,37 @@ class MainPresenter {
         self.view = view
     }
 }
+
 // MARK: - Private methods
+
 extension MainPresenter {
 
     private func fetchItems() {
         self.toDoItems = self.coreDataStack.fetch()
     }
 
-    private func removeItem(index: Int) {
+    func removeItem(index: Int) {
         let item = self.toDoItems[index]
         self.coreDataStack.deleteItem(item)
         self.toDoItems = self.coreDataStack.fetch()
+        self.view?.updateScreen(with: self.toDoItems)
+    }
+    
+    func updateItem(newName: String, newDescription: String?) {
+        let item = Item(itemName: newName, description: newDescription, completed: false)
+        self.coreDataStack.updateItem(item: item, newName: newName, newDescription: newDescription ?? "")
+        self.toDoItems = self.coreDataStack.fetch()
+        self.view?.updateScreen(with: self.toDoItems)
     }
 
     private func moveItem(fromIndex: Int, toIndex: Int) {
         let from = toDoItems[fromIndex]
         toDoItems.remove(at: fromIndex)
         toDoItems.insert(from, at: toIndex)
-        self.toDoItems = self.coreDataStack.fetch()
+        //self.toDoItems = self.coreDataStack.fetch()
     }
     
+    // не использовано пока
     private func changeState(index: Int) -> Bool {
         toDoItems[index].completed = toDoItems[index].completed
         self.coreDataStack.createCheckmark(newCheckmark: true)
@@ -54,10 +65,9 @@ extension MainPresenter {
         return toDoItems[index].completed
     }
     
-    private func sortByTitle() {
-        toDoItems.sort {
-            sortedAscending ? $0.itemName < $1.itemName : $0.itemName > $1.itemName
-        }
+    func sortByTitle() {
+        self.toDoItems.sort { sortedAscending ? $0.itemName < $1.itemName : $0.itemName > $1.itemName }
+        self.view?.updateScreen(with: self.toDoItems)
     }
         
     private func search() {
