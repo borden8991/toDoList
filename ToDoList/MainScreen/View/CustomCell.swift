@@ -41,9 +41,9 @@ class CustomCell: UITableViewCell {
     }
 
     // что он делает?
-    override func prepareForReuse() {
-        super.prepareForReuse()
-    }
+//    override func prepareForReuse() {
+//        super.prepareForReuse()
+//    }
 
     private func setupCell() {
         [itemName, itemDescription].forEach {
@@ -60,6 +60,7 @@ class CustomCell: UITableViewCell {
             itemDescription.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 25),
             itemDescription.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
             itemDescription.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -15)
+            
         ])
     }
     

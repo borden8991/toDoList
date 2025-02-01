@@ -44,6 +44,7 @@ extension MainPresenter {
     }
     
     func updateItem(newName: String, newDescription: String?) {
+        //item.itemName = newName
         let item = Item(itemName: newName, description: newDescription, completed: false)
         self.coreDataStack.updateItem(item: item, newName: newName, newDescription: newDescription ?? "")
         self.toDoItems = self.coreDataStack.fetch()
@@ -54,7 +55,7 @@ extension MainPresenter {
         let from = toDoItems[fromIndex]
         toDoItems.remove(at: fromIndex)
         toDoItems.insert(from, at: toIndex)
-        //self.toDoItems = self.coreDataStack.fetch()
+        self.toDoItems = self.coreDataStack.fetch()
     }
     
     // не использовано пока
@@ -62,6 +63,7 @@ extension MainPresenter {
         toDoItems[index].completed = toDoItems[index].completed
         self.coreDataStack.createCheckmark(newCheckmark: true)
         self.toDoItems = self.coreDataStack.fetch()
+        self.view?.updateScreen(with: self.toDoItems)
         return toDoItems[index].completed
     }
     

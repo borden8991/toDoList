@@ -26,7 +26,7 @@ final class CoreDataStack {
     // MARK: - Init
 
     public init() {
-        guard let modelUrl = Bundle.main.url(forResource: "ToDoList", withExtension: "momd") else {
+        guard Bundle.main.url(forResource: "ToDoList", withExtension: "momd") != nil else {
             fatalError("Невозможно загрузить CoreData модель")
         }
 

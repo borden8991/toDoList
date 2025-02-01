@@ -34,10 +34,22 @@ final class ViewController: UIViewController {
     
     private var refresh = UIRefreshControl()
     
+    private var stackView = UIStackView()
+    private let nameLabel = UILabel()
+    private let dateLabel = UILabel()
+    
     let userDefaults = UserDefaults.standard
+    
+    private let navBar = UINavigationBar()
+    
+    private var timer: Timer?
     
     var presenter: MainViewOutputProtocol?
     
+    var searchTask: [Item] = []
+    
+    
+    // ВОПРОС: Дважды объявляем в презентере и здесь?
     private var toDoItems: [Item] = []
     
     var searching = false
@@ -45,7 +57,6 @@ final class ViewController: UIViewController {
     private let tableView: UITableView = {
         let tableView = UITableView()
         tableView.register(CustomCell.self, forCellReuseIdentifier: CustomCell.identifier)
-        //tableView.separatorColor = .gray
         tableView.sectionHeaderHeight = 100
         tableView.rowHeight = UITableView.automaticDimension
         tableView.separatorColor = .systemBlue
@@ -70,7 +81,10 @@ final class ViewController: UIViewController {
         self.createNavBarButton()
         self.setupTableView()
         self.createRefreshController()
+        //self.addBottomBorder(with: UIColor.lightGray, height: 1)
         print("view did load")
+        
+       // searchTask = toDoItems
         
         self.presenter?.viewDidLoad()
     }
@@ -97,7 +111,11 @@ extension ViewController: UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        self.toDoItems.count
+        if searching == true {
+            return searchTask.count
+        } else {
+            return self.toDoItems.count
+        }
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -107,13 +125,18 @@ extension ViewController: UITableViewDataSource {
         }
         
         let currentTask = self.toDoItems[indexPath.row]
-        cell.itemName.text = currentTask.itemName
-        cell.itemDescription.text = currentTask.itemName
-        //cell.itemCompleted = currentTask.completed
-        cell.accessoryType = self.toDoItems[indexPath.row].completed ? .checkmark : .none
-        
-        cell.configure(task: self.toDoItems[indexPath.row])
-        
+        if searching == true {
+            cell.itemName.text = searchTask[indexPath.row].itemName
+            cell.itemDescription.text = searchTask[indexPath.row].description
+        } else {
+            cell.itemName.text = currentTask.itemName
+            
+            cell.itemDescription.text = currentTask.description
+            //cell.itemCompleted = currentTask.completed
+            cell.accessoryType = self.toDoItems[indexPath.row].completed ? .checkmark : .none
+            
+            cell.configure(task: self.toDoItems[indexPath.row])
+        }
         return cell
     }
     
@@ -153,15 +176,15 @@ extension ViewController: UITableViewDataSource {
         
         let editAlertAction = UIAlertAction(title: "Submit", style: .default) {
             (createAlert) in
-
+            
             guard let textFields = self.alert.textFields, textFields.count > 0,
                   let textValue = self.alert.textFields?[0].text,
                   let textValueDes = self.alert.textFields?[1].text else { return }
-        // TODO: - Вынести логику обновления айтема в презентер
-            self.presenter?.updateItem(newName: textValue, newDescription: textValueDes)
+            // TODO: - Вынести логику обновления айтема в презентер
             self.presenter?.removeItem(index: indexPath.row)
+            self.presenter?.updateItem(newName: textValue, newDescription: textValueDes)
+            self.updateScreen(with: self.toDoItems)
         }
-        
         // TODO: - Вынести логику удаления айтема в презентер
         alert.addAction(cancelAlertAction)
         alert.addAction(editAlertAction)
@@ -284,6 +307,17 @@ extension ViewController {
         self.presenter?.editButtonClicked = !(presenter?.editButtonClicked ?? false)
         editButton.image = self.presenter?.editButtonClicked ?? false ? Constants.pencilSlashImage : Constants.pencilImage
     }
+    
+//    func addBottomBorder(with color: UIColor, height: CGFloat) {
+//        let separator = UIView()
+//        separator.backgroundColor = color
+//        separator.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+//        separator.frame = CGRect(x: 0,
+//                                 y: view.frame.height - 752,
+//                                 width: view.frame.width,
+//                                 height: height)
+//        view.addSubview(separator)
+//    }
 }
 
 extension ViewController: MainViewInputProtocol {
@@ -298,40 +332,34 @@ extension ViewController: MainViewInputProtocol {
 }
 
 extension ViewController: UISearchBarDelegate {
-    /*func updateSearchResults(for searchController: UISearchController) {
-        print("DEBUG: ", searchController.searchBar.text ?? " ")
-        let searchBar = searchController.searchBar
-        guard let searchText = searchBar.text else { return }
-        filterForSearch(searchText: searchText)
-    }
-    
-    func filterForSearch(searchText: String) {
-        model.filteredToDoItems = model.toDoItems.filter {
-            $0.itemName.lowercased().contains(searchText.lowercased())
-        }
-        self.tableView.reloadData()
-    }*/
-    
+
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-//        model.filteredToDoItems = model.toDoItems.filter({
-//                $0.itemName.lowercased().prefix(searchText.count) == searchText.lowercased()
-//            })
-//        searching = true
-//        self.tableView.reloadData()
+        
+        //searchTask = toDoItems
+        
+        if searchText.isEmpty == false {
+            searching = true
+            searchTask = toDoItems.filter({ $0.itemName.lowercased().uppercased().prefix(searchText.count) == searchText.lowercased().uppercased()})
+            self.updateScreen(with: self.toDoItems)
+        } else {
+            searching = false
+            searchBar.text = ""
+            self.updateScreen(with: toDoItems)
+        }
     }
     
     func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
         searching = false
         searchBar.text = ""
-        self.tableView.reloadData()
+        self.updateScreen(with: toDoItems)
     }
+    
     private func createSearch() {
         
         self.searchController.searchBar.placeholder = "Find your task"
         self.searchController.obscuresBackgroundDuringPresentation = false
-        //self.searchController.searchResultsUpdater = self
+        self.searchController.searchResultsUpdater = self
         self.searchController.searchBar.enablesReturnKeyAutomatically = false
-        //self.searchController.searchResultsUpdater = self
         self.searchController.searchBar.delegate = self
         
         self.navigationItem.searchController = searchController
@@ -339,3 +367,34 @@ extension ViewController: UISearchBarDelegate {
         self.definesPresentationContext = true
     }
 }
+
+extension ViewController: UISearchResultsUpdating {
+    func updateSearchResults(for searchController: UISearchController) {
+        
+    }
+}
+
+// MARK: - Calendar
+
+extension Date {
+    static var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 2
+        return calendar
+    }
+    var startOfWeek: Date {
+        let components = Date.calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: self)
+        guard let firstDay = Date.calendar.date(from: components) else { return self }
+        return Date.calendar.date(byAdding: .day, value: 0, to: firstDay) ?? self
+    }
+    
+    func goForward(to days: Int) -> Date {
+        return Date.calendar.date(byAdding: .day, value: days, to: self) ?? self
+    }
+    
+    func stripTime() -> Date {
+        let components = Date.calendar.dateComponents([.year, .month, .day], from: self)
+        return Date.calendar.date(from: components) ?? self
+    }
+}
+
