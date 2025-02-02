@@ -8,17 +8,15 @@
 import UIKit
 import CoreData
 
-// Перевести на МВП
 // дополнить кор дату - удаление как минимум, и было бы круто добавить изменение
 // + изучить как работают NSFetchRequest (сортировки, фильтрации, лимиты, оффсеты)
 // закрыть кор дату протоколом
 // попытаться понять, что происходит в комплишене метода container.loadPersistentStores
-// попробовать добавить еще один объект кор даты(хз ченить
+
 final class ViewController: UIViewController {
     
-    
     // MARK: - Constants
-    // почему для этого лучше использовать enum а не struct?
+    
     private enum Constants {
         static let arrowUpImage = UIImage(systemName: "arrow.up")
         static let arrowDownImage = UIImage(systemName: "arrow.down")
@@ -28,15 +26,18 @@ final class ViewController: UIViewController {
 
     //MARK: - Properties
 
+    private let nameLabel = UILabel()
+    private let dateLabel = UILabel()
+    
     private let searchController = UISearchController()
+    
+    private var searchTask: [Item] = []
+    
+    private  var searching = false
 
     private var alert = UIAlertController()
     
     private var refresh = UIRefreshControl()
-    
-    private var stackView = UIStackView()
-    private let nameLabel = UILabel()
-    private let dateLabel = UILabel()
     
     let userDefaults = UserDefaults.standard
     
@@ -46,14 +47,13 @@ final class ViewController: UIViewController {
     
     var presenter: MainViewOutputProtocol?
     
-    var searchTask: [Item] = []
-    
-    
     // ВОПРОС: Дважды объявляем в презентере и здесь?
     private var toDoItems: [Item] = []
-    
-    var searching = false
 
+    private var sortButton = UIBarButtonItem()
+
+    private var editButton = UIBarButtonItem()
+    
     private let tableView: UITableView = {
         let tableView = UITableView()
         tableView.register(CustomCell.self, forCellReuseIdentifier: CustomCell.identifier)
@@ -62,10 +62,6 @@ final class ViewController: UIViewController {
         tableView.separatorColor = .systemBlue
         return tableView
     }()
-
-    private var sortButton = UIBarButtonItem()
-
-    private var editButton = UIBarButtonItem()
 
     //MARK: -Lifecycle
 
@@ -81,10 +77,7 @@ final class ViewController: UIViewController {
         self.createNavBarButton()
         self.setupTableView()
         self.createRefreshController()
-        //self.addBottomBorder(with: UIColor.lightGray, height: 1)
         print("view did load")
-        
-       // searchTask = toDoItems
         
         self.presenter?.viewDidLoad()
     }
@@ -128,11 +121,11 @@ extension ViewController: UITableViewDataSource {
         if searching == true {
             cell.itemName.text = searchTask[indexPath.row].itemName
             cell.itemDescription.text = searchTask[indexPath.row].description
+           // cell.itemCompleted = currentTask.completed
         } else {
             cell.itemName.text = currentTask.itemName
-            
             cell.itemDescription.text = currentTask.description
-            //cell.itemCompleted = currentTask.completed
+           // cell.itemCompleted = currentTask.completed
             cell.accessoryType = self.toDoItems[indexPath.row].completed ? .checkmark : .none
             
             cell.configure(task: self.toDoItems[indexPath.row])
@@ -174,23 +167,20 @@ extension ViewController: UITableViewDataSource {
         
         let cancelAlertAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
         
-        let editAlertAction = UIAlertAction(title: "Submit", style: .default) {
+        let editAlertAction = UIAlertAction(title: "Submit", style: .default) { // WEAK SELF?
             (createAlert) in
             
             guard let textFields = self.alert.textFields, textFields.count > 0,
                   let textValue = self.alert.textFields?[0].text,
                   let textValueDes = self.alert.textFields?[1].text else { return }
-            // TODO: - Вынести логику обновления айтема в презентер
             self.presenter?.removeItem(index: indexPath.row)
             self.presenter?.updateItem(newName: textValue, newDescription: textValueDes)
             self.updateScreen(with: self.toDoItems)
         }
-        // TODO: - Вынести логику удаления айтема в презентер
         alert.addAction(cancelAlertAction)
         alert.addAction(editAlertAction)
         present(alert, animated: true, completion: nil)
     }
-    
 }
 
     //MARK: - UITableViewDelegate
@@ -206,7 +196,6 @@ extension ViewController: UITableViewDelegate {
         
         
         let deleteAction = UIContextualAction(style: .normal, title: "Delete") { [weak self] (action, view, completionHandler) in
-            // TODO: - Вынести логику удаления айтема в презентер
             self?.presenter?.removeItem(index: indexPath.row)
         }
         deleteAction.backgroundColor = .systemRed
@@ -225,9 +214,6 @@ extension ViewController: UITableViewDelegate {
     }
 
     func checkmarkAdd(indexPath: IndexPath) {
-
-        // TODO: - Вынести логику добавления галки в презентер
-        //self.model.changeState(index: indexPath.row)
         if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
             tableView.cellForRow(at: indexPath)?.accessoryType = .none
         }
@@ -252,7 +238,7 @@ extension ViewController {
         ])
     }
 
-    func createRefreshController() {
+    private func createRefreshController() {
         self.refresh.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
         tableView.addSubview(refresh)
     }
@@ -263,11 +249,17 @@ extension ViewController {
 
     private func createNavBarButton() {
 
-        let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addTask(sender: )))
+        let addButton = UIBarButtonItem(barButtonSystemItem: .add,
+                                        target: self,
+                                        action: #selector(addTask(sender: )))
 
-        self.sortButton = UIBarButtonItem(image: Constants.arrowDownImage, style: .plain, target: self, action: #selector(sortingTasksButtonAction(sender: )))
+        self.sortButton = UIBarButtonItem(image: Constants.arrowDownImage,
+                                          style: .plain, target: self,
+                                          action: #selector(sortingTasksButtonAction(sender: )))
 
-        self.editButton = UIBarButtonItem(image: Constants.pencilImage, style: .plain, target: self, action: #selector(editButton(sender: )))
+        self.editButton = UIBarButtonItem(image: Constants.pencilImage,
+                                          style: .plain, target: self,
+                                          action: #selector(editButton(sender: )))
 
         self.navigationItem.rightBarButtonItems = [addButton, editButton, sortButton]
     }
@@ -275,8 +267,6 @@ extension ViewController {
     @objc func addTask(sender: UIBarButtonItem) {
         let vc = AddTaskScreenBuilder.createAddTaskScreen()
         navigationController?.pushViewController(vc, animated: true)
-
-        // TODO: - Вынести логику сортировки айтемов в презентер
     }
 
     @objc
@@ -291,8 +281,6 @@ extension ViewController {
 
     @objc
     private func sortingTasksButtonAction(sender: UIBarButtonItem) {
-
-        // TODO: - Вынести логику сортировки айтемов в презентер
         sortButton.image = self.presenter?.sortedAscending ?? true ? Constants.arrowUpImage : Constants.arrowDownImage
         
         self.presenter?.sortedAscending = !(self.presenter?.sortedAscending ?? false)
@@ -303,22 +291,12 @@ extension ViewController {
     @objc
     private func editButton(sender: UIBarButtonItem) {
         tableView.setEditing(!tableView.isEditing, animated: true)
-        // TODO: - Вынести логику изменения айтема в презентер
         self.presenter?.editButtonClicked = !(presenter?.editButtonClicked ?? false)
         editButton.image = self.presenter?.editButtonClicked ?? false ? Constants.pencilSlashImage : Constants.pencilImage
     }
-    
-//    func addBottomBorder(with color: UIColor, height: CGFloat) {
-//        let separator = UIView()
-//        separator.backgroundColor = color
-//        separator.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-//        separator.frame = CGRect(x: 0,
-//                                 y: view.frame.height - 752,
-//                                 width: view.frame.width,
-//                                 height: height)
-//        view.addSubview(separator)
-//    }
 }
+
+//MARK: - MainViewInputProtocol
 
 extension ViewController: MainViewInputProtocol {
     func updateScreen(with items: [Item]) {
@@ -331,11 +309,11 @@ extension ViewController: MainViewInputProtocol {
     }
 }
 
+//MARK: - UISearchBarDelegate
+
 extension ViewController: UISearchBarDelegate {
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        
-        //searchTask = toDoItems
         
         if searchText.isEmpty == false {
             searching = true
@@ -358,19 +336,13 @@ extension ViewController: UISearchBarDelegate {
         
         self.searchController.searchBar.placeholder = "Find your task"
         self.searchController.obscuresBackgroundDuringPresentation = false
-        self.searchController.searchResultsUpdater = self
+        //self.searchController.searchResultsUpdater = self
         self.searchController.searchBar.enablesReturnKeyAutomatically = false
         self.searchController.searchBar.delegate = self
         
         self.navigationItem.searchController = searchController
         self.navigationItem.hidesSearchBarWhenScrolling = false
         self.definesPresentationContext = true
-    }
-}
-
-extension ViewController: UISearchResultsUpdating {
-    func updateSearchResults(for searchController: UISearchController) {
-        
     }
 }
 

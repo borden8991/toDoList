@@ -76,7 +76,7 @@ final class TaskViewController: UIViewController {
         createTaskButton.isEnabled = textField.hasText
     }
     
-    func createDescriprionTextField() {
+    private func createDescriprionTextField() {
         view.addSubview(descriptionTaskField)
         self.descriptionTaskField.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -87,7 +87,7 @@ final class TaskViewController: UIViewController {
         ])
     }
 
-    func createTaskButtonConstreint() {
+    private func createTaskButtonConstreint() {
         view.addSubview(createTaskButton)
         self.createTaskButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -101,7 +101,6 @@ final class TaskViewController: UIViewController {
     @objc func buttonTask(sender: Any) {
         print("Button is pressed")
         guard let title = self.nameTaskField.text else { return }
-        
         self.presenter?.didPressCreateTaskButton(itemName: title, itemDescription: self.descriptionTaskField.text)
     }
 }

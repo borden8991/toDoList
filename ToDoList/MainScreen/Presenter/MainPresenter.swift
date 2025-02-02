@@ -71,10 +71,6 @@ extension MainPresenter {
         self.toDoItems.sort { sortedAscending ? $0.itemName < $1.itemName : $0.itemName > $1.itemName }
         self.view?.updateScreen(with: self.toDoItems)
     }
-        
-    private func search() {
-        
-    }
 }
 
 extension MainPresenter: MainViewOutputProtocol {

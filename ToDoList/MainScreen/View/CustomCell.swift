@@ -7,7 +7,6 @@
 
 import UIKit
 
-// по крайсоте расписать
 class CustomCell: UITableViewCell {
     
     let itemName: UILabel = {
@@ -40,11 +39,6 @@ class CustomCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // что он делает?
-//    override func prepareForReuse() {
-//        super.prepareForReuse()
-//    }
-
     private func setupCell() {
         [itemName, itemDescription].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
@@ -60,7 +54,6 @@ class CustomCell: UITableViewCell {
             itemDescription.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 25),
             itemDescription.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -15),
             itemDescription.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -15)
-            
         ])
     }
     
