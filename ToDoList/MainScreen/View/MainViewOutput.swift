@@ -8,11 +8,25 @@
 import Foundation
 
 protocol MainViewOutputProtocol: AnyObject {
-    var sortedAscending: Bool { get set }
-    var editButtonClicked: Bool { get set }
+    /// Кнопка изменения нажата
+    func editButtonClicked()
+
+    /// Кнопка сортировки нажата
+    func sortByTitleButtonClicked()
+    
+    /// Вьюха была загружена
     func viewDidLoad()
+    
+    /// <#Description#>
     func viewDidAppear()
-    func sortByTitle()
-    func removeItem(index: Int)
-    func updateItem(newName: String, newDescription: String?)
+    
+    /// Кнопка удаления нажата.
+    /// - Parameter index: Строка с задачей
+    func removeItemButtonClicked(index: Int)
+    
+    /// Кнопка изменения/обновления задачи нажата.
+    /// - Parameters:
+    ///   - newName: Новое название задачи.
+    ///   - newDescription: Новое описание задачи.
+    func updateItemButtonClicked(newName: String, newDescription: String?)
 }

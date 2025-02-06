@@ -169,12 +169,11 @@ extension ViewController: UITableViewDataSource {
         
         let editAlertAction = UIAlertAction(title: "Submit", style: .default) { // WEAK SELF?
             (createAlert) in
-            
             guard let textFields = self.alert.textFields, textFields.count > 0,
                   let textValue = self.alert.textFields?[0].text,
                   let textValueDes = self.alert.textFields?[1].text else { return }
-            self.presenter?.removeItem(index: indexPath.row)
-            self.presenter?.updateItem(newName: textValue, newDescription: textValueDes)
+            self.presenter?.removeItemButtonClicked(index: indexPath.row)
+            self.presenter?.updateItemButtonClicked(newName: textValue, newDescription: textValueDes)
             self.updateScreen(with: self.toDoItems)
         }
         alert.addAction(cancelAlertAction)
@@ -196,7 +195,7 @@ extension ViewController: UITableViewDelegate {
         
         
         let deleteAction = UIContextualAction(style: .normal, title: "Delete") { [weak self] (action, view, completionHandler) in
-            self?.presenter?.removeItem(index: indexPath.row)
+            self?.presenter?.removeItemButtonClicked(index: indexPath.row)
         }
         deleteAction.backgroundColor = .systemRed
         
@@ -281,24 +280,27 @@ extension ViewController {
 
     @objc
     private func sortingTasksButtonAction(sender: UIBarButtonItem) {
-        sortButton.image = self.presenter?.sortedAscending ?? true ? Constants.arrowUpImage : Constants.arrowDownImage
-        
-        self.presenter?.sortedAscending = !(self.presenter?.sortedAscending ?? false)
-        
-        self.presenter?.sortByTitle()
+        self.presenter?.sortByTitleButtonClicked()
     }
     
     @objc
     private func editButton(sender: UIBarButtonItem) {
-        tableView.setEditing(!tableView.isEditing, animated: true)
-        self.presenter?.editButtonClicked = !(presenter?.editButtonClicked ?? false)
-        editButton.image = self.presenter?.editButtonClicked ?? false ? Constants.pencilSlashImage : Constants.pencilImage
+        self.presenter?.editButtonClicked()
     }
 }
 
 //MARK: - MainViewInputProtocol
 
 extension ViewController: MainViewInputProtocol {
+    func updateAscendingState(isAscending: Bool) {
+        sortButton.image = isAscending ? Constants.arrowUpImage : Constants.arrowDownImage
+    }
+    
+    func updateEditingState(isEditing: Bool) {
+        tableView.setEditing(isEditing, animated: true)
+        editButton.image = isEditing ? Constants.pencilSlashImage : Constants.pencilImage
+    }
+    
     func updateScreen(with items: [Item]) {
         self.toDoItems = items
         tableView.reloadData()
@@ -336,7 +338,6 @@ extension ViewController: UISearchBarDelegate {
         
         self.searchController.searchBar.placeholder = "Find your task"
         self.searchController.obscuresBackgroundDuringPresentation = false
-        //self.searchController.searchResultsUpdater = self
         self.searchController.searchBar.enablesReturnKeyAutomatically = false
         self.searchController.searchBar.delegate = self
         
@@ -354,6 +355,7 @@ extension Date {
         calendar.firstWeekday = 2
         return calendar
     }
+    
     var startOfWeek: Date {
         let components = Date.calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: self)
         guard let firstDay = Date.calendar.date(from: components) else { return self }
