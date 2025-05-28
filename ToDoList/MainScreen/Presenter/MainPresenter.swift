@@ -13,6 +13,8 @@ protocol MainViewInputProtocol: AnyObject {
     /// - Parameter notes: Массив задач.
     func updateScreen(with notes: [NoteViewModel])
     
+    /// Не удалось обновить экран с сохраненными задачами.
+    /// - Parameter error: Ошибка получения массива задач.
     func failure(error: Error)
     
     /// Обновить экран с состоянием изменения всех записей.
@@ -139,6 +141,15 @@ extension MainPresenter: MainViewOutputProtocol {
     func toggleCompletion(at id: UUID) {
         coreDataStack.toggleNoteCompletion(id)
         self.fetchNotes()
+    }
+    
+    func addNoteButtonClicked(noteName: String, noteDescription: String?) {
+        let note = NoteViewModel(id: UUID(),
+                        noteName: noteName,
+                        description: noteDescription,
+                        completed: false)
+        self.coreDataStack.createNote(note)
+        fetchNotes()
     }
 }
 
