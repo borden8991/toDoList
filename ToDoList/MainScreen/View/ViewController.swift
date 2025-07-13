@@ -14,71 +14,39 @@ final class ViewController: UIViewController {
     
     private enum Constants {
         static let arrowUpImage = UIImage(systemName: "arrow.up")
-        static let arrowDownImage = UIImage(systemName: "arrow.down")
-        static let pencilImage = UIImage(systemName: "pencil")
+        static let arrowDownImage = UIImage(named: "sortButtonImage")
+        static let pencilImage = UIImage(named: "editButtonImage")
         static let pencilSlashImage = UIImage(systemName: "pencil.slash")
     }
 
     //MARK: - Properties
 
     private let nameLabel = UILabel()
-    
     private let dateLabel = UILabel()
-    
     private let searchController = UISearchController(searchResultsController: nil)
-    
-    private var searchNote: [NoteViewModel] = []
-    
-    private var searching = false
-
-    private var alert = UIAlertController()
-    
-    private var refresh = UIRefreshControl()
-    
+    private let searchContainerView = UIView()
+    private let searchTextField = UITextField()
+    private let tableView = UITableView()
     private let navBar = UINavigationBar()
     
-    private var timer: Timer?
-
-    private var toDoNote: [NoteViewModel] = []
-    
-    private var addButton = UIBarButtonItem()
-
-    private var sortButton = UIBarButtonItem()
-
-    private var editButton = UIBarButtonItem()
-    
+    private var searchNote: [NoteViewModel] = []
+    private var searching = false
     private var isSwipeActive = false
-
-    private let tableView: UITableView = {
-        let tableView = UITableView()
-        tableView.register(CustomCell.self, forCellReuseIdentifier: CustomCell.identifier)
-        tableView.sectionHeaderHeight = 100
-        tableView.rowHeight = UITableView.automaticDimension
-        tableView.separatorColor = .systemBlue
-        tableView.separatorInset = .zero
-        tableView.layoutMargins = .zero
-        return tableView
-    }()
+    private var refresh = UIRefreshControl()
+    private var timer: Timer?
+    private var toDoNote: [NoteViewModel] = []
+    private var addButton = UIBarButtonItem()
+    private var sortButton = UIBarButtonItem()
+    private var editButton = UIBarButtonItem()
+    private let userDefaults = UserDefaults.standard
     
     var presenter: MainViewOutputProtocol?
     
-    let userDefaults = UserDefaults.standard
-
     //MARK: - Lifecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        self.tableView.dataSource = self
-        self.tableView.delegate = self
-        
-        self.navigationItem.title = "Notes"
-
-        self.createSearch()
-        self.createNavBarButton()
-        self.setupTableView()
-        self.createRefreshController()
-        self.presenter?.viewDidLoad()
+        configureUI()
         print("view did load")
     }
 
@@ -113,14 +81,10 @@ extension ViewController: UITableViewDataSource {
             return UITableViewCell()
         }
         
-        if tableView.isEditing {
-            
-        }
-        
         let note = self.toDoNote[indexPath.row]
         cell.noteName.text = note.noteName
         cell.noteDescription.text = note.description
-        cell.accessoryType = note.completed ? .checkmark : .none
+        cell.configure(note: note)
         return cell
     }
     
@@ -135,52 +99,17 @@ extension ViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
         true
     }
-        
-    func editCellContent(indexPath: IndexPath) {
-        
-        let cell = tableView(tableView, cellForRowAt: indexPath) as? CustomCell
-        
-        alert = UIAlertController(title: "Edit your note", message: nil, preferredStyle: .alert)
-
-        alert.addTextField(configurationHandler: { [weak self] (textField) -> Void in
-            textField.addTarget(self, action: #selector(self?.alertTextFieldDidChange(_:)), for: .editingChanged)
-            textField.text = cell?.noteName.text
-        })
-        
-        alert.addTextField(configurationHandler: { (textField) -> Void in
-            textField.text = cell?.noteDescription.text
-        })
-        
-        let cancelAlertAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
-        
-        let editAlertAction = UIAlertAction(title: "Submit", style: .default) { [weak self]
-            createAlert in
-            guard let self else { return }
-            let newDescription = self.alert.textFields?.last?.text ?? ""
-            if let newName = self.alert.textFields?.first?.text,
-               !newName.isEmpty,
-               self.toDoNote.indices.contains(indexPath.row) {
-                self.presenter?.updateNoteButtonClicked(id: self.toDoNote[indexPath.row].id, newName: newName, newDescription: newDescription)
-            }
-            self.updateScreen(with: self.toDoNote)
-        }
-        alert.addAction(cancelAlertAction)
-        alert.addAction(editAlertAction)
-        present(alert, animated: true, completion: nil)
-    }
 }
 
     //MARK: - UITableViewDelegate
 
 extension ViewController: UITableViewDelegate {
 
-    // Когда свайп начинает показываться (система)
     func tableView(_ tableView: UITableView, willBeginEditingRowAt indexPath: IndexPath) {
         isSwipeActive = true
         self.editButton.isEnabled = false
     }
 
-    // Когда свайп скрывается (пользователь закончил)
     func tableView(_ tableView: UITableView, didEndEditingRowAt indexPath: IndexPath?) {
         isSwipeActive = false
         self.editButton.isEnabled = true
@@ -212,27 +141,63 @@ extension ViewController: UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let editAction = UIContextualAction(style: .normal, title: "Edit") { [weak self] (action, view, completionHandler) in
-            self?.editCellContent(indexPath: indexPath)
-            completionHandler(true)
+        
+        let note = toDoNote[indexPath.row]
+
+        let editAction = UIContextualAction(style: .normal, title: "Edit") { [weak self] _, _, completion in
+            guard let self else { return }
+            let alert = CustomEditAlertView()
+            alert.configure(with: note)
+            alert.delegate = self
+            alert.show(in: self.view)
+            completion(true)
         }
         editAction.backgroundColor = .systemBlue
-
         return UISwipeActionsConfiguration(actions: [editAction])
     }
 }
 
+// MARK: - CustomEditAlertDelegate
+
+extension ViewController: CustomEditAlertDelegate {
+    func didEditNote(newName: String, newDescription: String?, noteID: UUID?) {
+        if let id = noteID {
+            presenter?.updateNoteButtonClicked(id: id, newName: newName, newDescription: newDescription)
+        } else {
+            presenter?.addNoteButtonClicked(noteName: newName, noteDescription: newDescription)
+        }
+    }
+}
+
+
 // MARK: - Private Methods
 
 extension ViewController {
+    
+    private func configureUI() {
+        self.navigationItem.title = "Notes"
+        self.setupSearch()
+        self.createNavBarButton()
+        self.setupTableView()
+        self.createRefreshController()
+        self.presenter?.viewDidLoad()
+    }
 
     private func setupTableView() {
+        
+        tableView.register(CustomCell.self, forCellReuseIdentifier: CustomCell.identifier)
+        tableView.sectionHeaderHeight = 100
+        tableView.rowHeight = UITableView.automaticDimension
+        tableView.separatorInset = .zero
+        tableView.layoutMargins = .zero
+        tableView.separatorStyle = .none
+        
         view.addSubview(tableView)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             tableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.topAnchor.constraint(equalTo: searchContainerView.bottomAnchor, constant: 12),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
     }
@@ -259,25 +224,23 @@ extension ViewController {
         self.editButton = UIBarButtonItem(image: Constants.pencilImage,
                                           style: .plain, target: self,
                                           action: #selector(editButton(sender: )))
+ 
+        [addButton, sortButton, editButton].forEach { $0.tintColor = UIColor(hex: "FF8C00") }
 
         self.navigationItem.rightBarButtonItems = [addButton, editButton, sortButton]
+        
+        let font = UIFont.systemFont(ofSize: 20, weight: .bold)
+        navigationController?.navigationBar.titleTextAttributes = [ NSAttributedString.Key.font: font ]
     }
 
     @objc
     func addNote(sender: UIBarButtonItem) {
-        let vc = AddNoteScreenBuilder.createAddNoteScreen()
-        navigationController?.pushViewController(vc, animated: true)
+        let alert = CustomEditAlertView()
+        alert.configure(with: nil) 
+        alert.delegate = self
+        alert.show(in: self.view)
     }
-
-    @objc
-    private func alertTextFieldDidChange(_ sender: UITextField) {
-        guard let senderText = sender.text, alert.actions.indices.contains(1) else {
-            return
-        }
-        let action = alert.actions[1]
-        action.isEnabled = senderText.count > 0
-    }
-
+    
     @objc
     private func sortingNotesButtonAction(sender: UIBarButtonItem) {
         self.presenter?.sortByTitleButtonClicked()
@@ -285,7 +248,7 @@ extension ViewController {
     
     @objc
     private func editButton(sender: UIBarButtonItem) {
-            self.presenter?.editButtonClicked()
+        self.presenter?.editButtonClicked()
     }
 }
 
@@ -294,7 +257,7 @@ extension ViewController {
 extension ViewController: MainViewInputProtocol {
     
     func updateAscendingState(isAscending: Bool) {
-        sortButton.image = isAscending ? Constants.arrowUpImage : Constants.arrowDownImage
+        sortButton.image = isAscending ? Constants.arrowDownImage : Constants.arrowUpImage
     }
     
     func updateEditingState(isEditing: Bool) {
@@ -320,42 +283,76 @@ extension ViewController: MainViewInputProtocol {
 
 extension ViewController: UISearchBarDelegate {
 
-    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        
-        if searchText.isEmpty == false {
-            searching = true
-            searchNote = toDoNote.filter({ $0.noteName.lowercased().uppercased().prefix(searchText.count) == searchText.lowercased().uppercased()})
-            self.updateScreen(with: self.toDoNote)
-        } else {
-            searching = false
-            self.updateScreen(with: toDoNote)
-        }
-    }
+    private func setupSearch() {
     
-    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
-        searching = false
-        self.updateScreen(with: toDoNote)
-    }
-    
-    private func createSearch() {
+        searchContainerView.backgroundColor = .white
+        searchContainerView.layer.cornerRadius = 16
+        searchContainerView.layer.borderColor = UIColor(hex: "FF8C00").cgColor
+        searchContainerView.layer.borderWidth = 1
+        searchContainerView.translatesAutoresizingMaskIntoConstraints = false
         
-        self.searchController.searchBar.placeholder = "Find your note"
-        self.searchController.obscuresBackgroundDuringPresentation = false
-        self.searchController.searchBar.enablesReturnKeyAutomatically = false
-        self.searchController.searchBar.delegate = self
-        self.searchController.searchResultsUpdater = self
+        searchTextField.placeholder = "Find your note"
+        searchTextField.borderStyle = .none
+        searchTextField.translatesAutoresizingMaskIntoConstraints = false
+        searchTextField.textColor = UIColor(hex: "9B9B9B")
+        searchTextField.font = .systemFont(ofSize: 17, weight: .medium)
+        searchTextField.clearButtonMode = .always
+        searchTextField.returnKeyType = .done
         
-        self.navigationItem.searchController = searchController
-        self.navigationItem.hidesSearchBarWhenScrolling = false
-        self.definesPresentationContext = true
+        let imageView = UIImageView(image: UIImage(named: "searchGlassImage"))
+        imageView.tintColor = UIColor(hex: "9B9B9B")
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        view.addSubview(searchContainerView)
+        searchContainerView.addSubview(imageView)
+        searchContainerView.addSubview(searchTextField)
+        
+        NSLayoutConstraint.activate([
+            searchContainerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            searchContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            searchContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            searchContainerView.heightAnchor.constraint(equalToConstant: 48),
+
+            imageView.leadingAnchor.constraint(equalTo: searchContainerView.leadingAnchor, constant: 18.23),
+            imageView.centerYAnchor.constraint(equalTo: searchContainerView.centerYAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: 19.52),
+            imageView.heightAnchor.constraint(equalToConstant: 19.52),
+
+            searchTextField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 10.25),
+            searchTextField.trailingAnchor.constraint(equalTo: searchContainerView.trailingAnchor, constant: -12),
+            searchTextField.topAnchor.constraint(equalTo: searchContainerView.topAnchor),
+            searchTextField.bottomAnchor.constraint(equalTo: searchContainerView.bottomAnchor)
+        ])
+        
+        self.searchTextField.delegate = self
+        self.searchTextField.addTarget(self,
+                                       action: #selector(searchTextChanged(for: )),
+                                       for: .editingChanged)
+        
+        self.tableView.dataSource = self
+        self.tableView.delegate = self
     }
 }
+    
+//MARK: - UITextFieldDelegate
 
-//MARK: - UISearchResultsUpdating
+extension ViewController: UITextFieldDelegate {
+    
+    @objc func searchTextChanged(for searchText: UITextField) {
+        presenter?.searchbarTextDidChange(searchText.text ?? "")
+    }
+    
+    func textFieldShouldClear(_ textField: UITextField) -> Bool {
+        DispatchQueue.main.async {
+            textField.resignFirstResponder()
+        }
+        return true
+    }
 
-extension ViewController: UISearchResultsUpdating {
-    func updateSearchResults(for searchController: UISearchController) {
-        presenter?.searchbarTextDidChange(searchController.searchBar.text ?? "")
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        textField.resignFirstResponder()
+        return true
     }
 }
 

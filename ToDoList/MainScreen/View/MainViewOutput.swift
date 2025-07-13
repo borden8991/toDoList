@@ -39,4 +39,6 @@ protocol MainViewOutputProtocol: AnyObject {
     /// Текст в серч баре был изменен.
     /// - Parameter text: Набранный текст в поисковой строке.
     func searchbarTextDidChange(_ text: String)
+    
+    func addNoteButtonClicked(noteName: String, noteDescription: String?)
 }

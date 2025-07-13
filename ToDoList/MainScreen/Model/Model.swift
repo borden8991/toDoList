@@ -12,14 +12,19 @@ struct NoteViewModel {
     var noteName: String
     var description: String?
     var completed: Bool
-}
-
-extension NoteViewModel {
+    
     init(entity: NoteEntity) {
         self.id = entity.id ?? UUID()
         self.noteName = entity.noteName
         self.description = entity.noteDescription
         self.completed = entity.noteCompleted
+    }
+    
+    init(id: UUID, noteName: String, description: String? = nil, completed: Bool) {
+        self.id = id
+        self.noteName = noteName
+        self.description = description
+        self.completed = completed
     }
 }
     
